@@ -71,7 +71,7 @@ inline ncclDataType_t PDDataTypeToNcclDataType(C_DataType type) {
     return ncclFloat32;
   } else if (type == C_DataType::BFLOAT16) {
     return ncclBfloat16;
-  } else if (type == C_DataType::UINT8) {
+  } else if (type == C_DataType::UINT8 || type == C_DataType::BOOL) {
     return ncclUint8;
   } else if (type == C_DataType::UINT32) {
     return ncclUint32;
@@ -87,33 +87,6 @@ inline ncclDataType_t PDDataTypeToNcclDataType(C_DataType type) {
     return ncclFloat16;
   } else if (type == C_DataType::FLOAT64) {
     return ncclFloat64;
-  } else {
-    LOG(ERROR) << "Datatype " << type << " in nccl is not supported.";
-  }
-  return ncclFloat32;
-}
-
-inline mcclDataType_t PDDataTypeToMcclDataType(C_DataType type) {
-  if (type == C_DataType::FLOAT32) {
-    return mcclFloat32;
-  } else if (type == C_DataType::BFLOAT16) {
-    return mcclBfloat16;
-  } else if (type == C_DataType::UINT8) {
-    return mcclUint8;
-  } else if (type == C_DataType::UINT32) {
-    return mcclUint32;
-  } else if (type == C_DataType::UINT64) {
-    return mcclUint64;
-  } else if (type == C_DataType::INT8) {
-    return mcclInt8;
-  } else if (type == C_DataType::INT32) {
-    return mcclInt32;
-  } else if (type == C_DataType::INT64) {
-    return mcclInt64;
-  } else if (type == C_DataType::FLOAT16) {
-    return mcclFloat16;
-  } else if (type == C_DataType::FLOAT64) {
-    return mcclFloat64;
   } else {
     LOG(ERROR) << "Datatype " << type << " in nccl is not supported.";
   }
@@ -1269,6 +1242,31 @@ C_Status IsDNNSupported(const C_Device device, bool *supported) {
   return C_SUCCESS;
 }
 
+C_Status InitDnnHandle(const C_Device device,
+                       C_DNNHandle *dnn_handle,
+                       C_Stream stream) {
+  if (phi::dynload::HasCUDNN()) {
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnCreate(
+        reinterpret_cast<cudnnHandle_t *>(dnn_handle)));
+    PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::cudnnSetStream(
+        *reinterpret_cast<cudnnHandle_t *>(dnn_handle),
+        reinterpret_cast<cudaStream_t>(stream)));
+    return C_SUCCESS;
+  } else {
+    *dnn_handle = nullptr;
+    LOG(WARNING) << "cudnn library not found! setting dnn_handle to nullptr.";
+    return C_SUCCESS;
+  }
+}
+
+C_Status DestroyDnnHandle(const C_Device device, C_DNNHandle dnn_handle) {
+  if (dnn_handle != nullptr) {
+    phi::dynload::cudnnDestroy(reinterpret_cast<cudnnHandle_t>(dnn_handle));
+    dnn_handle = nullptr;
+  }
+  return C_SUCCESS;
+}
+
 C_Status CudaStreamBeginCapture(const C_Device device,
                                 C_Stream stream,
                                 C_StreamCaptureMode mode) {
@@ -1524,6 +1522,8 @@ void InitPlugin(CustomRuntimeParams *params) {
   params->interface->destroy_blas_handle = DestroyBlasHandle;
   params->interface->destroy_blaslt_handle = DestroyBlasLtHandle;
   params->interface->blas_set_math_mode = BlasSetMathMode;
+  params->interface->init_dnn_handle = InitDnnHandle;
+  params->interface->destroy_dnn_handle = DestroyDnnHandle;
 
   params->interface->xccl_all_gather = XcclAllGather;
   params->interface->xccl_all_reduce = XcclAllReduce;

@@ -25,7 +25,20 @@ set(PYTHON_VERSION ${PY_VERSION})
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 set(WITH_MKLML ON)
-
+if(WITH_ARM)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+  set(WITH_XBYAK
+      OFF
+      CACHE STRING "Disable XBYAK when compiling WITH_ARM=ON." FORCE)
+  set(WITH_MKL
+      OFF
+      CACHE STRING "Disable MKL when compiling WITH_ARM=ON." FORCE)
+  set(WITH_AVX
+      OFF
+      CACHE STRING "Disable AVX when compiling WITH_ARM=ON." FORCE)
+  add_definitions(-DPADDLE_WITH_ARM)
+endif()
 include(paddle)
 set(THIRD_PARTY_PATH
     "${PADDLE_SOURCE_DIR}/build/third_party"
@@ -129,6 +142,24 @@ file(
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_recv_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_concat_grad_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/partial_allgather_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/softmax_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/batch_norm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/batch_norm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_entropy_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cross_entropy_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cudnn_lstm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/cudnn_lstm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/depthwise_conv_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/depthwise_conv_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/conv_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/conv_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/grid_sample_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/grid_sample_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/instance_norm_grad_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/instance_norm_kernel.cu
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rnn_grad_kernel.cu.cc
+  ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/rnn_kernel.cu.cc
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/ctc_align_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/yolo_box_head_kernel.cu
   ${PADDLE_SOURCE_DIR}/paddle/phi/kernels/gpu/stft_grad_kernel.cu
@@ -799,6 +830,7 @@ target_compile_definitions(
          PADDLE_WITH_CUSTOM_DEVICE=1
          mcblasContext=cublasContext
          cublasLtContext=mcblasLtContext
+         cudnnContext==mcdnnContex
          GPUContext=CustomContext
          KPSContext=CustomContext
          STREAM_TYPE=cudaStream_t
